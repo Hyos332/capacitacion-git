@@ -7,6 +7,6 @@ let count = 0;
 
 // Agregar un evento al botón
 incrementButton.addEventListener('click', () => {
-  count++;
+  count += 2; // Incrementar el contador de 2 en 2
   counterElement.textContent = count;
 });
