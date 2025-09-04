@@ -3,7 +3,7 @@ import { useBox } from '@react-three/cannon'
 import { useThree, useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 
-export default function Player({ firstPerson = false, controlsRef = null }) {
+export default function Player({ firstPerson = false, controlsRef = null, enabled = true }) {
   const { camera } = useThree()
 
   const [ref, api] = useBox(() => ({
@@ -23,6 +23,7 @@ export default function Player({ firstPerson = false, controlsRef = null }) {
   const keys = useRef({ w: 0, a: 0, s: 0, d: 0, space: 0 })
   useEffect(() => {
     function down(e) {
+      if (!enabled) return
       const k = e.key.toLowerCase()
       if (k === 'w') keys.current.w = 1
       if (k === 's') keys.current.s = 1
@@ -31,6 +32,7 @@ export default function Player({ firstPerson = false, controlsRef = null }) {
       if (e.code === 'Space') keys.current.space = 1
     }
     function up(e) {
+      if (!enabled) return
       const k = e.key.toLowerCase()
       if (k === 'w') keys.current.w = 0
       if (k === 's') keys.current.s = 0
@@ -44,7 +46,7 @@ export default function Player({ firstPerson = false, controlsRef = null }) {
       window.removeEventListener('keydown', down)
       window.removeEventListener('keyup', up)
     }
-  }, [])
+  }, [enabled])
 
   const forward = useRef(new THREE.Vector3())
   const right = useRef(new THREE.Vector3())
@@ -93,6 +95,13 @@ export default function Player({ firstPerson = false, controlsRef = null }) {
   }, [controlsRef, ref.current])
 
   useFrame((state) => {
+    // si no está enabled, bloquear movimiento horizontal
+    if (!enabled) {
+      const currentY = vel.current[1] ?? 0
+      api.velocity.set(0, currentY, 0)
+      return
+    }
+
     // determine control object: prefer controls object (FP) otherwise camera
     const ctrlObj = controlsRef && controlsRef.current
       ? (typeof controlsRef.current.getObject === 'function' ? controlsRef.current.getObject() : controlsRef.current)
