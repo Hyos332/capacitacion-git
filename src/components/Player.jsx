@@ -96,7 +96,7 @@ export default function Player() {
     if (rightArmRef.current) rightArmRef.current.rotation.x = angle * 0.6
 
     // bob corporal leve
-    if (headRef.current) headRef.current.position.y = 0.55 + 0.06 * Math.abs(Math.sin(t * 8)) * walkSpeed
+    if (headRef.current) headRef.current.position.y = 0.7 + 0.06 * Math.abs(Math.sin(t * 8)) * walkSpeed
 
     // cámara sigue al jugador
     if (ref.current) {
@@ -108,44 +108,49 @@ export default function Player() {
     }
   })
 
-  // root mesh es el collider; visuales son hijos posicionados relativo a ese centro
+  // root mesh es el collider; visuales están en un grupo desplazado hacia arriba para dejar espacio entre pies y suelo
+  const visualYOffset = 0.18 // espacio entre el centro del collider y el centro visual: ajusta si hace falta
+
   return (
     <mesh ref={ref} castShadow receiveShadow>
       {/* collider invisible */}
       <boxGeometry args={[0.6, 1.2, 0.45]} />
       <meshBasicMaterial visible={false} />
 
-      {/* cabeza (cubo) */}
-      <mesh ref={headRef} position={[0, 0.55, 0]} castShadow>
-        <boxGeometry args={[0.5, 0.5, 0.5]} />
-        <meshStandardMaterial color="#ffcc99" />
-      </mesh>
+      {/* group visual desplazado hacia arriba para que los pies no toquen el suelo */}
+      <group position={[0, visualYOffset, 0]}>
+        {/* cabeza (cubo) */}
+        <mesh ref={headRef} position={[0, 0.7, 0]} castShadow>
+          <boxGeometry args={[0.5, 0.5, 0.5]} />
+          <meshStandardMaterial color="#ffcc99" />
+        </mesh>
 
-      {/* torso */}
-      <mesh position={[0, -0.05, 0]} castShadow>
-        <boxGeometry args={[0.6, 0.7, 0.35]} />
-        <meshStandardMaterial color="#8b5a2b" />
-      </mesh>
+        {/* torso */}
+        <mesh position={[0, 0.1, 0]} castShadow>
+          <boxGeometry args={[0.6, 0.7, 0.35]} />
+          <meshStandardMaterial color="#8b5a2b" />
+        </mesh>
 
-      {/* brazos */}
-      <mesh ref={leftArmRef} position={[-0.45, 0.1, 0]} castShadow>
-        <boxGeometry args={[0.18, 0.6, 0.18]} />
-        <meshStandardMaterial color="#ffcc99" />
-      </mesh>
-      <mesh ref={rightArmRef} position={[0.45, 0.1, 0]} castShadow>
-        <boxGeometry args={[0.18, 0.6, 0.18]} />
-        <meshStandardMaterial color="#ffcc99" />
-      </mesh>
+        {/* brazos */}
+        <mesh ref={leftArmRef} position={[-0.45, 0.1, 0]} castShadow>
+          <boxGeometry args={[0.18, 0.6, 0.18]} />
+          <meshStandardMaterial color="#ffcc99" />
+        </mesh>
+        <mesh ref={rightArmRef} position={[0.45, 0.1, 0]} castShadow>
+          <boxGeometry args={[0.18, 0.6, 0.18]} />
+          <meshStandardMaterial color="#ffcc99" />
+        </mesh>
 
-      {/* piernas */}
-      <mesh ref={leftLegRef} position={[-0.15, -0.6, 0]} castShadow>
-        <boxGeometry args={[0.2, 0.6, 0.2]} />
-        <meshStandardMaterial color="#333" />
-      </mesh>
-      <mesh ref={rightLegRef} position={[0.15, -0.6, 0]} castShadow>
-        <boxGeometry args={[0.2, 0.6, 0.2]} />
-        <meshStandardMaterial color="#333" />
-      </mesh>
+        {/* piernas (subidas para no intersectar con el suelo) */}
+        <mesh ref={leftLegRef} position={[-0.15, -0.45, 0]} castShadow>
+          <boxGeometry args={[0.2, 0.6, 0.2]} />
+          <meshStandardMaterial color="#333" />
+        </mesh>
+        <mesh ref={rightLegRef} position={[0.15, -0.45, 0]} castShadow>
+          <boxGeometry args={[0.2, 0.6, 0.2]} />
+          <meshStandardMaterial color="#333" />
+        </mesh>
+      </group>
     </mesh>
   )
 }
