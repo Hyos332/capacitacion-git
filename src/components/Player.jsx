@@ -3,26 +3,23 @@ import { useBox } from '@react-three/cannon'
 import { useThree, useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 
-export default function Player() {
+export default function Player({ firstPerson = false, controlsRef = null }) {
   const { camera } = useThree()
 
-  // physics box (mejor para personaje cubo)
   const [ref, api] = useBox(() => ({
     mass: 1,
     position: [0, 1.0, 5],
-    args: [0.6, 1.2, 0.45], // ancho, alto, profundidad
+    args: [0.6, 1.2, 0.45],
     linearDamping: 0.9,
     angularDamping: 1
   }))
 
-  // velocidad
   const vel = useRef([0, 0, 0])
   useEffect(() => {
     const unsub = api.velocity.subscribe(v => (vel.current = v))
     return unsub
   }, [api])
 
-  // input
   const keys = useRef({ w: 0, a: 0, s: 0, d: 0, space: 0 })
   useEffect(() => {
     function down(e) {
@@ -49,22 +46,61 @@ export default function Player() {
     }
   }, [])
 
-  // vectores reutilizables
   const forward = useRef(new THREE.Vector3())
   const right = useRef(new THREE.Vector3())
   const upVec = new THREE.Vector3(0, 1, 0)
   const camPos = useRef(new THREE.Vector3())
 
-  // refs para partes visuales
   const headRef = useRef()
   const leftArmRef = useRef()
   const rightArmRef = useRef()
   const leftLegRef = useRef()
   const rightLegRef = useRef()
 
+  const visualYOffset = 0.18
+  const headLocalY = 0.7 // posición Y de la cabeza dentro del grupo visual
+
+  // cuando controlsRef y el mesh existan, parentear el objeto de controls al mesh (una sola vez)
+  useEffect(() => {
+    const tryAttach = () => {
+      if (!controlsRef || !controlsRef.current || !ref.current) return
+      const ctrlObj = typeof controlsRef.current.getObject === 'function'
+        ? controlsRef.current.getObject()
+        : controlsRef.current
+      if (!ctrlObj) return
+
+      // si no está ya parentado, añadirlo al mesh para que la cámara siga al collider
+      if (ctrlObj.parent !== ref.current) {
+        // posición local dentro del jugador: colocar en la altura de la cabeza
+        ctrlObj.position.set(0, visualYOffset + headLocalY, 0)
+        ref.current.add(ctrlObj)
+      }
+    }
+
+    tryAttach()
+    // también reintentar si controles se montan más tarde
+    const id = setInterval(tryAttach, 500)
+    return () => {
+      clearInterval(id)
+      if (controlsRef && controlsRef.current && ref.current) {
+        const ctrlObj = typeof controlsRef.current.getObject === 'function'
+          ? controlsRef.current.getObject()
+          : controlsRef.current
+        if (ctrlObj && ctrlObj.parent === ref.current) ref.current.remove(ctrlObj)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [controlsRef, ref.current])
+
   useFrame((state) => {
-    // dirección relativa a cámara
-    camera.getWorldDirection(forward.current)
+    // determine control object: prefer controls object (FP) otherwise camera
+    const ctrlObj = controlsRef && controlsRef.current
+      ? (typeof controlsRef.current.getObject === 'function' ? controlsRef.current.getObject() : controlsRef.current)
+      : null
+
+    // dirección de referencia: control object (FP) o cámara (TP)
+    const dirSource = ctrlObj || camera
+    dirSource.getWorldDirection(forward.current)
     forward.current.y = 0
     forward.current.normalize()
     right.current.copy(forward.current).cross(upVec).normalize()
@@ -79,13 +115,13 @@ export default function Player() {
     const currentY = vel.current[1] ?? 0
     api.velocity.set(vx, currentY, vz)
 
-    // salto simple
+    // salto
     const onGround = Math.abs(currentY) < 0.15
     if (keys.current.space && onGround) {
       api.applyImpulse([0, 5, 0], [0, 0, 0])
     }
 
-    // animación de caminar (según velocidad horizontal)
+    // animaciones
     const hSpeed = Math.hypot(vel.current[0] ?? 0, vel.current[2] ?? 0)
     const t = state.clock.getElapsedTime()
     const walkSpeed = Math.min(hSpeed, 6) / 6
@@ -95,62 +131,58 @@ export default function Player() {
     if (leftArmRef.current) leftArmRef.current.rotation.x = -angle * 0.6
     if (rightArmRef.current) rightArmRef.current.rotation.x = angle * 0.6
 
-    // bob corporal leve
-    if (headRef.current) headRef.current.position.y = 0.7 + 0.06 * Math.abs(Math.sin(t * 8)) * walkSpeed
+    if (headRef.current) headRef.current.position.y = headLocalY + 0.06 * Math.abs(Math.sin(t * 8)) * walkSpeed
 
-    // cámara sigue al jugador
-    if (ref.current) {
-      ref.current.getWorldPosition(camPos.current)
-      const target = new THREE.Vector3(camPos.current.x, camPos.current.y + 0.6, camPos.current.z)
-      const desiredPos = new THREE.Vector3(camPos.current.x + 3, camPos.current.y + 2, camPos.current.z + 6)
-      camera.position.lerp(desiredPos, 0.08)
-      camera.lookAt(target)
+    // EN ESTA VERSIÓN NO FORZAMOS ctrlObj.position cada frame.
+    // La cámara ya está parentada al mesh (en useEffect) y seguirá al collider automáticamente.
+    if (!firstPerson) {
+      // tercera persona: cámara detrás del jugador (lerp)
+      if (ref.current) {
+        ref.current.getWorldPosition(camPos.current)
+        const target = new THREE.Vector3(camPos.current.x, camPos.current.y + 0.6, camPos.current.z)
+        const desiredPos = new THREE.Vector3(camPos.current.x + 3, camPos.current.y + 2, camPos.current.z + 6)
+        camera.position.lerp(desiredPos, 0.08)
+        camera.lookAt(target)
+      }
     }
   })
 
-  // root mesh es el collider; visuales están en un grupo desplazado hacia arriba para dejar espacio entre pies y suelo
-  const visualYOffset = 0.18 // espacio entre el centro del collider y el centro visual: ajusta si hace falta
-
   return (
     <mesh ref={ref} castShadow receiveShadow>
-      {/* collider invisible */}
       <boxGeometry args={[0.6, 1.2, 0.45]} />
       <meshBasicMaterial visible={false} />
 
-      {/* group visual desplazado hacia arriba para que los pies no toquen el suelo */}
-      <group position={[0, visualYOffset, 0]}>
-        {/* cabeza (cubo) */}
-        <mesh ref={headRef} position={[0, 0.7, 0]} castShadow>
-          <boxGeometry args={[0.5, 0.5, 0.5]} />
-          <meshStandardMaterial color="#ffcc99" />
-        </mesh>
+      {!firstPerson && (
+        <group position={[0, visualYOffset, 0]}>
+          <mesh ref={headRef} position={[0, headLocalY, 0]} castShadow>
+            <boxGeometry args={[0.5, 0.5, 0.5]} />
+            <meshStandardMaterial color="#ffcc99" />
+          </mesh>
 
-        {/* torso */}
-        <mesh position={[0, 0.1, 0]} castShadow>
-          <boxGeometry args={[0.6, 0.7, 0.35]} />
-          <meshStandardMaterial color="#8b5a2b" />
-        </mesh>
+          <mesh position={[0, 0.1, 0]} castShadow>
+            <boxGeometry args={[0.6, 0.7, 0.35]} />
+            <meshStandardMaterial color="#8b5a2b" />
+          </mesh>
 
-        {/* brazos */}
-        <mesh ref={leftArmRef} position={[-0.45, 0.1, 0]} castShadow>
-          <boxGeometry args={[0.18, 0.6, 0.18]} />
-          <meshStandardMaterial color="#ffcc99" />
-        </mesh>
-        <mesh ref={rightArmRef} position={[0.45, 0.1, 0]} castShadow>
-          <boxGeometry args={[0.18, 0.6, 0.18]} />
-          <meshStandardMaterial color="#ffcc99" />
-        </mesh>
+          <mesh ref={leftArmRef} position={[-0.45, 0.1, 0]} castShadow>
+            <boxGeometry args={[0.18, 0.6, 0.18]} />
+            <meshStandardMaterial color="#ffcc99" />
+          </mesh>
+          <mesh ref={rightArmRef} position={[0.45, 0.1, 0]} castShadow>
+            <boxGeometry args={[0.18, 0.6, 0.18]} />
+            <meshStandardMaterial color="#ffcc99" />
+          </mesh>
 
-        {/* piernas (subidas para no intersectar con el suelo) */}
-        <mesh ref={leftLegRef} position={[-0.15, -0.45, 0]} castShadow>
-          <boxGeometry args={[0.2, 0.6, 0.2]} />
-          <meshStandardMaterial color="#333" />
-        </mesh>
-        <mesh ref={rightLegRef} position={[0.15, -0.45, 0]} castShadow>
-          <boxGeometry args={[0.2, 0.6, 0.2]} />
-          <meshStandardMaterial color="#333" />
-        </mesh>
-      </group>
+          <mesh ref={leftLegRef} position={[-0.15, -0.45, 0]} castShadow>
+            <boxGeometry args={[0.2, 0.6, 0.2]} />
+            <meshStandardMaterial color="#333" />
+          </mesh>
+          <mesh ref={rightLegRef} position={[0.15, -0.45, 0]} castShadow>
+            <boxGeometry args={[0.2, 0.6, 0.2]} />
+            <meshStandardMaterial color="#333" />
+          </mesh>
+        </group>
+      )}
     </mesh>
   )
 }
