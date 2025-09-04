@@ -5,6 +5,7 @@ import { Physics, usePlane } from '@react-three/cannon'
 import Player from './components/Player'
 import InstancedChunk from './components/InstancedChunk'
 import Menu from './components/Menu'
+import PauseMenu from './components/PauseMenu'
 
 function Ground() {
   const [ref] = usePlane(() => ({ rotation: [-Math.PI / 2, 0, 0], position: [0, -0.5, 0] }))
@@ -19,6 +20,7 @@ function Ground() {
 export default function App() {
   const controlsRef = useRef()
   const [menuOpen, setMenuOpen] = useState(true)
+  const [paused, setPaused] = useState(false)
   const firstPerson = true
 
   const tryLock = () => {
@@ -29,11 +31,52 @@ export default function App() {
   }
 
   useEffect(() => {
+    // permitir lock por gesture click
     const canvas = document.querySelector('canvas')
     if (!canvas) return
     const onClick = () => tryLock()
     canvas.addEventListener('click', onClick)
     return () => canvas.removeEventListener('click', onClick)
+  }, [])
+
+  useEffect(() => {
+    // ESC: abrir/cerrar menú de pausa (NO desbloquea el cursor aquí)
+    function onKey(e) {
+      if (e.key !== 'Escape' || menuOpen) return
+      setPaused(p => {
+        const next = !p
+        if (!next) setTimeout(tryLock, 50)
+        return next
+      })
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [menuOpen])
+
+  // NUEVO: si el pointer lock se pierde (p. ej. por ESC del navegador),
+  // abrimos automáticamente el menú de pausa para evitar tener que pulsar ESC otra vez.
+  useEffect(() => {
+    function onPointerLockChange() {
+      const locked = document.pointerLockElement != null
+      if (!locked && !menuOpen && !paused) {
+        setPaused(true)
+      }
+    }
+    document.addEventListener('pointerlockchange', onPointerLockChange)
+    return () => document.removeEventListener('pointerlockchange', onPointerLockChange)
+  }, [menuOpen, paused])
+
+  useEffect(() => {
+    // G: desbloquear cursor cuando el usuario pulse G
+    function onKey(e) {
+      if (e.key.toLowerCase() !== 'g') return
+      const ctrl = controlsRef.current
+      if (ctrl && typeof ctrl.unlock === 'function' && ctrl.isLocked) {
+        try { ctrl.unlock() } catch (err) { /* ignore */ }
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
   }, [])
 
   const chunkSize = [16, 4, 16]
@@ -51,9 +94,20 @@ export default function App() {
     }
   }
 
+  const handleResume = () => {
+    setPaused(false)
+    setTimeout(tryLock, 50)
+  }
+  const handleQuit = () => {
+    // volver al menú principal
+    const ctrl = controlsRef.current
+    if (ctrl && typeof ctrl.unlock === 'function' && ctrl.isLocked) ctrl.unlock()
+    setPaused(false)
+    setMenuOpen(true)
+  }
+
   return (
     <div style={{ height: '100vh', width: '100vw' }}>
-      {/* Menu overlay */}
       {menuOpen && (
         <Menu
           title="SCAPE THE MOYS"
@@ -63,21 +117,25 @@ export default function App() {
         />
       )}
 
-      {/* blood-y vignette cuando el juego está corriendo (puedes ajustar opacidad/estilo) */}
+      {/* pause overlay */}
+      {paused && !menuOpen && (
+        <PauseMenu
+          onResume={handleResume}
+          onSettings={() => {}}
+          onQuit={handleQuit}
+        />
+      )}
+
+      {/* blood vignette */}
       {!menuOpen && (
         <div style={{
-          position: 'fixed',
-          inset: 0,
-          pointerEvents: 'none',
-          zIndex: 5,
+          position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 5,
           background: 'radial-gradient(ellipse at center, rgba(120,0,0,0.06) 0%, rgba(30,0,0,0.18) 40%, rgba(0,0,0,0.6) 90%)'
         }}>
           <div style={{
             position: 'absolute', left: 0, right: 0, top: 0, height: 160,
             background: 'linear-gradient(180deg, rgba(180,0,0,0.45), rgba(180,0,0,0.12))',
-            mixBlendMode: 'multiply',
-            opacity: 0.7,
-            transform: 'skewY(-2deg)'
+            mixBlendMode: 'multiply', opacity: 0.7, transform: 'skewY(-2deg)'
           }} />
         </div>
       )}
@@ -88,18 +146,17 @@ export default function App() {
         <Physics gravity={[0, -9.81, 0]}>
           <Ground />
           {chunkElements}
-          {/* enabled = !menuOpen -> jugador solo puede moverse cuando menu cerrado */}
-          <Player firstPerson={firstPerson} controlsRef={controlsRef} enabled={!menuOpen} />
+          {/* enabled false while menuOpen or paused */}
+          <Player firstPerson={firstPerson} controlsRef={controlsRef} enabled={!menuOpen && !paused} />
         </Physics>
 
-        {/* PointerLockControls montado siempre; lock se realiza al Play o click */}
         <PointerLockControls ref={controlsRef} />
         <Stats />
       </Canvas>
 
       <div style={{ position: 'fixed', left: 12, bottom: 12, color: '#fff', fontFamily: 'Arial', zIndex: 6 }}>
         <div>Primera persona (siempre). Click en canvas para bloquear cursor. W A S D: mover · Space: salto</div>
-        <div>Esc desbloquea cursor.</div>
+        <div>G desbloquea cursor · Esc abre/cierran menú de pausa.</div>
       </div>
     </div>
   )
