@@ -1,25 +1,31 @@
 import React, { useRef, useMemo, useEffect } from 'react'
 import * as THREE from 'three'
 
-export default function InstancedChunk({ size = [16, 4, 16], offset = [0, 0, 0] }) {
+export default function InstancedChunk({ size = [16, 4, 16], offset = [0, 0, 0], density = 0.35, blockScale = 0.9 }) {
   const ref = useRef()
+
+  // Generamos solo una capa de bloques por (x,z) y con probabilidad `density`
   const matrices = useMemo(() => {
-    const [sx, sy, sz] = size
+    const [sx, /*sy*/, sz] = size
     const list = []
     for (let x = 0; x < sx; x++) {
       for (let z = 0; z < sz; z++) {
-        const h = Math.floor(Math.random() * sy) + 1
-        for (let y = 0; y < h; y++) {
-          const tx = x + offset[0]
-          const ty = y + offset[1]
-          const tz = z + offset[2]
-          const m = new THREE.Matrix4().makeTranslation(tx - sx / 2, ty, tz - sz / 2)
-          list.push(m)
-        }
+        if (Math.random() > density) continue // espacio libre para ver el plano
+        const y = 0 // una sola capa sobre la superficie
+        const tx = x + offset[0]
+        const ty = y + offset[1]
+        const tz = z + offset[2]
+
+        // centrar cada bloque en su celda y aplicar escala para dejar hueco
+        const position = new THREE.Vector3(tx - sx / 2 + 0.5, ty + 0.5, tz - sz / 2 + 0.5)
+        const quaternion = new THREE.Quaternion()
+        const scale = new THREE.Vector3(blockScale, blockScale, blockScale)
+        const m = new THREE.Matrix4().compose(position, quaternion, scale)
+        list.push(m)
       }
     }
     return list
-  }, [size, offset])
+  }, [size, offset, density, blockScale])
 
   useEffect(() => {
     if (!ref.current) return
