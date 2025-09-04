@@ -26,21 +26,30 @@ export default function App() {
   const tryLock = () => {
     const ctrl = controlsRef.current
     if (ctrl && typeof ctrl.lock === 'function' && !ctrl.isLocked) {
-      try { ctrl.lock() } catch (e) { /* requiere gesto del usuario */ }
+      try { ctrl.lock() } catch (e) { /* necesita gesto del usuario */ }
     }
   }
 
+  // Añade/elimina el listener de click SOBRE EL CANVAS solo cuando estemos en GAMEPLAY
   useEffect(() => {
-    // permitir lock por gesture click
     const canvas = document.querySelector('canvas')
     if (!canvas) return
-    const onClick = () => tryLock()
-    canvas.addEventListener('click', onClick)
-    return () => canvas.removeEventListener('click', onClick)
-  }, [])
 
+    function onCanvasClick() {
+      if (!menuOpen && !paused) tryLock()
+    }
+
+    if (!menuOpen && !paused) {
+      canvas.addEventListener('click', onCanvasClick)
+    }
+
+    return () => {
+      canvas.removeEventListener('click', onCanvasClick)
+    }
+  }, [menuOpen, paused])
+
+  // ESC: abrir/cerrar pausa (no desbloquea el cursor)
   useEffect(() => {
-    // ESC: abrir/cerrar menú de pausa (NO desbloquea el cursor aquí)
     function onKey(e) {
       if (e.key !== 'Escape' || menuOpen) return
       setPaused(p => {
@@ -53,8 +62,7 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey)
   }, [menuOpen])
 
-  // NUEVO: si el pointer lock se pierde (p. ej. por ESC del navegador),
-  // abrimos automáticamente el menú de pausa para evitar tener que pulsar ESC otra vez.
+  // si browser sale del pointer lock (p. ej. ESC), abrimos pausa automáticamente
   useEffect(() => {
     function onPointerLockChange() {
       const locked = document.pointerLockElement != null
@@ -66,8 +74,8 @@ export default function App() {
     return () => document.removeEventListener('pointerlockchange', onPointerLockChange)
   }, [menuOpen, paused])
 
+  // G: desbloquear cursor manualmente
   useEffect(() => {
-    // G: desbloquear cursor cuando el usuario pulse G
     function onKey(e) {
       if (e.key.toLowerCase() !== 'g') return
       const ctrl = controlsRef.current
@@ -99,7 +107,6 @@ export default function App() {
     setTimeout(tryLock, 50)
   }
   const handleQuit = () => {
-    // volver al menú principal
     const ctrl = controlsRef.current
     if (ctrl && typeof ctrl.unlock === 'function' && ctrl.isLocked) ctrl.unlock()
     setPaused(false)
@@ -117,7 +124,6 @@ export default function App() {
         />
       )}
 
-      {/* pause overlay */}
       {paused && !menuOpen && (
         <PauseMenu
           onResume={handleResume}
@@ -126,7 +132,6 @@ export default function App() {
         />
       )}
 
-      {/* blood vignette */}
       {!menuOpen && (
         <div style={{
           position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 5,
@@ -146,16 +151,17 @@ export default function App() {
         <Physics gravity={[0, -9.81, 0]}>
           <Ground />
           {chunkElements}
-          {/* enabled false while menuOpen or paused */}
           <Player firstPerson={firstPerson} controlsRef={controlsRef} enabled={!menuOpen && !paused} />
         </Physics>
 
-        <PointerLockControls ref={controlsRef} />
+        {/* PointerLockControls solo montado en gameplay */}
+        {(!menuOpen && !paused) && <PointerLockControls ref={controlsRef} />}
+
         <Stats />
       </Canvas>
 
       <div style={{ position: 'fixed', left: 12, bottom: 12, color: '#fff', fontFamily: 'Arial', zIndex: 6 }}>
-        <div>Primera persona (siempre). Click en canvas para bloquear cursor. W A S D: mover · Space: salto</div>
+        <div>Primera persona (siempre). W A S D: mover · Space: salto</div>
         <div>G desbloquea cursor · Esc abre/cierran menú de pausa.</div>
       </div>
     </div>
