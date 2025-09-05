@@ -2,10 +2,12 @@ import React, { useEffect, useRef, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { PointerLockControls, Stats } from '@react-three/drei'
 import { Physics, usePlane } from '@react-three/cannon'
+import * as THREE from 'three'
 import Player from './components/Player'
 import InstancedChunk from './components/InstancedChunk'
 import Menu from './components/Menu'
 import PauseMenu from './components/PauseMenu'
+import Enemy from './components/Enemy'
 
 function Ground() {
   const [ref] = usePlane(() => ({ rotation: [-Math.PI / 2, 0, 0], position: [0, -0.5, 0] }))
@@ -22,6 +24,7 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(true)
   const [paused, setPaused] = useState(false)
   const firstPerson = true
+  const playerPosRef = useRef(new THREE.Vector3())
 
   const tryLock = () => {
     const ctrl = controlsRef.current
@@ -151,11 +154,18 @@ export default function App() {
         <Physics gravity={[0, -9.81, 0]}>
           <Ground />
           {chunkElements}
-          <Player firstPerson={firstPerson} controlsRef={controlsRef} enabled={!menuOpen && !paused} />
+          <Player
+            firstPerson={firstPerson}
+            controlsRef={controlsRef}
+            enabled={!menuOpen && !paused}
+            playerPosRef={playerPosRef}
+          />
         </Physics>
 
-        {/* PointerLockControls solo montado en gameplay */}
         {(!menuOpen && !paused) && <PointerLockControls ref={controlsRef} />}
+
+        {/* ENEMY: solo en gameplay */}
+        {(!menuOpen && !paused) && <Enemy targetRef={playerPosRef} speed={2.5} start={[-10, 0.7, -10]} />}
 
         <Stats />
       </Canvas>

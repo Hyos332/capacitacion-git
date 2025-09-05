@@ -3,13 +3,15 @@ import { useBox } from '@react-three/cannon'
 import { useThree, useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 
-export default function Player({ firstPerson = false, controlsRef = null, enabled = true }) {
+export default function Player({ firstPerson = false, controlsRef = null, enabled = true, playerPosRef = null }) {
   const { camera } = useThree()
 
   const [ref, api] = useBox(() => ({
     mass: 1,
-    position: [0, 1.0, 5],
-    args: [0.6, 1.2, 0.45],
+    // subimos el collider para que la cámara quede a mayor altura
+    position: [0, 1.3, 5],
+    // mantener args consistente con la malla visual (altura mayor)
+    args: [0.6, 1.6, 0.45],
     linearDamping: 0.9,
     angularDamping: 1
   }))
@@ -60,7 +62,8 @@ export default function Player({ firstPerson = false, controlsRef = null, enable
   const rightLegRef = useRef()
 
   const visualYOffset = 0.18
-  const headLocalY = 0.7 // posición Y de la cabeza dentro del grupo visual
+  // aumentar este valor eleva la cámara en 1ª persona
+  const headLocalY = 1.05 // posición Y de la cabeza dentro del grupo visual
 
   // cuando controlsRef y el mesh existan, parentear el objeto de controls al mesh (una sola vez)
   useEffect(() => {
@@ -74,7 +77,7 @@ export default function Player({ firstPerson = false, controlsRef = null, enable
       // si no está ya parentado, añadirlo al mesh para que la cámara siga al collider
       if (ctrlObj.parent !== ref.current) {
         // posición local dentro del jugador: colocar en la altura de la cabeza
-        ctrlObj.position.set(0, visualYOffset + headLocalY, 0)
+        ctrlObj.position.set(0, headLocalY + visualYOffset, 0)
         ref.current.add(ctrlObj)
       }
     }
@@ -142,23 +145,34 @@ export default function Player({ firstPerson = false, controlsRef = null, enable
 
     if (headRef.current) headRef.current.position.y = headLocalY + 0.06 * Math.abs(Math.sin(t * 8)) * walkSpeed
 
-    // EN ESTA VERSIÓN NO FORZAMOS ctrlObj.position cada frame.
-    // La cámara ya está parentada al mesh (en useEffect) y seguirá al collider automáticamente.
-    if (!firstPerson) {
-      // tercera persona: cámara detrás del jugador (lerp)
-      if (ref.current) {
-        ref.current.getWorldPosition(camPos.current)
-        const target = new THREE.Vector3(camPos.current.x, camPos.current.y + 0.6, camPos.current.z)
-        const desiredPos = new THREE.Vector3(camPos.current.x + 3, camPos.current.y + 2, camPos.current.z + 6)
+    if (ref.current) {
+      const headWorld = new THREE.Vector3()
+      if (headRef.current) headRef.current.getWorldPosition(headWorld)
+
+      if (firstPerson && ctrlObj) {
+        // primera persona: NO manipulamos camera directamente aquí porque PointerLockControls
+        // ya está parentado al collider (se adjunta en useEffect). Dejar que Controls maneje rotación.
+        // Si quieres ajustar la posición relativa, cambia ctrlObj.position en tryAttach en lugar de hacerlo cada frame.
+      } else {
+        // tercera persona: cámara detrás del jugador (lerp)
+        const target = new THREE.Vector3(headWorld.x, headWorld.y + 0.6, headWorld.z)
+        const desiredPos = new THREE.Vector3(headWorld.x + 3, headWorld.y + 2, headWorld.z + 6)
         camera.position.lerp(desiredPos, 0.08)
         camera.lookAt(target)
+      }
+
+      // Exponer posición para la IA (usa la posición de la cabeza si existe)
+      if (playerPosRef && playerPosRef.current) {
+        if (headRef.current) playerPosRef.current.copy(headWorld)
+        else ref.current.getWorldPosition(playerPosRef.current)
       }
     }
   })
 
   return (
     <mesh ref={ref} castShadow receiveShadow>
-      <boxGeometry args={[0.6, 1.2, 0.45]} />
+      {/* geometry ahora sincronizada con el collider (altura 1.6) */}
+      <boxGeometry args={[0.6, 1.6, 0.45]} />
       <meshBasicMaterial visible={false} />
 
       {!firstPerson && (
