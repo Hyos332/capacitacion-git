@@ -8,6 +8,7 @@ import InstancedChunk from './components/InstancedChunk'
 import Menu from './components/Menu'
 import PauseMenu from './components/PauseMenu'
 import Enemy from './components/Enemy'
+import DancingRobot from './components/DancingRobot' // <-- añadir import
 
 function Ground() {
   const [ref] = usePlane(() => ({ rotation: [-Math.PI / 2, 0, 0], position: [0, -0.5, 0] }))
@@ -166,6 +167,9 @@ export default function App() {
 
         {/* ENEMY: solo en gameplay */}
         {(!menuOpen && !paused) && <Enemy targetRef={playerPosRef} speed={2.5} start={[-10, 0.7, -10]} />}
+
+        {/* ROBOT BAILANDO: solo en gameplay */}
+        {(!menuOpen && !paused) && <DancingRobot position={[2, 0, -2]} speed={1.2} scale={1.05} />}
 
         <Stats />
       </Canvas>
