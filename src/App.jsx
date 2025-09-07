@@ -4,7 +4,6 @@ import { PointerLockControls, Stats } from '@react-three/drei'
 import { Physics, usePlane } from '@react-three/cannon'
 import * as THREE from 'three'
 import Player from './components/Player'
-import InstancedChunk from './components/InstancedChunk'
 import Menu from './components/Menu'
 import PauseMenu from './components/PauseMenu'
 import Enemy from './components/Enemy'
@@ -91,21 +90,6 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  const chunkSize = [16, 4, 16]
-  const chunksX = 3
-  const chunksZ = 3
-  const [sx,, sz] = chunkSize
-  const startX = - (chunksX * sx) / 2
-  const startZ = - (chunksZ * sz) / 2
-  const chunkElements = []
-  for (let cx = 0; cx < chunksX; cx++) {
-    for (let cz = 0; cz < chunksZ; cz++) {
-      const offsetX = startX + cx * sx
-      const offsetZ = startZ + cz * sz
-      chunkElements.push(<InstancedChunk key={`c-${cx}-${cz}`} size={chunkSize} offset={[offsetX, 0, offsetZ]} density={0.18} />)
-    }
-  }
-
   const handleResume = () => {
     setPaused(false)
     setTimeout(tryLock, 50)
@@ -154,7 +138,7 @@ export default function App() {
         <directionalLight position={[10, 40, 20]} intensity={0.9} castShadow />
         <Physics gravity={[0, -9.81, 0]}>
           <Ground />
-          {chunkElements}
+          {/* Bloques aleatorios eliminados: solo superficie verde */}
           <Player
             firstPerson={firstPerson}
             controlsRef={controlsRef}
