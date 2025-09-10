@@ -8,9 +8,8 @@ export default function Player({ firstPerson = false, controlsRef = null, enable
 
   const [ref, api] = useBox(() => ({
     mass: 1,
-    // hacer el jugador más grande para el mapa gigante
     position: [0, 3.5, 5],
-    args: [1.5, 4.0, 1.2], // ancho, alto, profundidad más grandes
+    args: [1.5, 4.0, 1.2],
     linearDamping: 0.9,
     angularDamping: 1
   }))
@@ -49,10 +48,11 @@ export default function Player({ firstPerson = false, controlsRef = null, enable
     }
   }, [enabled])
 
+  // reutilizar objetos Vector3 para evitar garbage collection
   const forward = useRef(new THREE.Vector3())
   const right = useRef(new THREE.Vector3())
+  const velocity = useRef(new THREE.Vector3())
   const upVec = new THREE.Vector3(0, 1, 0)
-  const camPos = useRef(new THREE.Vector3())
 
   const headRef = useRef()
   const leftArmRef = useRef()
@@ -61,118 +61,108 @@ export default function Player({ firstPerson = false, controlsRef = null, enable
   const rightLegRef = useRef()
   const torsoRef = useRef()
 
-  // ajustar proporciones visuales para el jugador más grande
   const visualYOffset = 0.4
-  const headLocalY = 2.5 // altura de la cabeza dentro del collider
+  const headLocalY = 2.5
 
-  // cuando controlsRef y el mesh existan, parentear el objeto de controls al mesh (una sola vez)
   useEffect(() => {
     const tryAttach = () => {
       if (!controlsRef || !controlsRef.current || !ref.current) return
       const ctrlObj = typeof controlsRef.current.getObject === 'function'
         ? controlsRef.current.getObject()
         : controlsRef.current
-      if (!ctrlObj) return
+      if (!ctrlObj || ctrlObj.parent === ref.current) return
 
-      // si no está ya parentado, añadirlo al mesh para que la cámara siga al collider
-      if (ctrlObj.parent !== ref.current) {
-        // posición local dentro del jugador: colocar en la altura de la cabeza
-        ctrlObj.position.set(0, headLocalY + visualYOffset, 0)
-        ref.current.add(ctrlObj)
-      }
+      ctrlObj.position.set(0, headLocalY + visualYOffset, 0)
+      ref.current.add(ctrlObj)
     }
 
     tryAttach()
-    // también reintentar si controles se montan más tarde
     const id = setInterval(tryAttach, 500)
     return () => {
       clearInterval(id)
-      if (controlsRef && controlsRef.current && ref.current) {
+      if (controlsRef?.current && ref.current) {
         const ctrlObj = typeof controlsRef.current.getObject === 'function'
           ? controlsRef.current.getObject()
           : controlsRef.current
         if (ctrlObj && ctrlObj.parent === ref.current) ref.current.remove(ctrlObj)
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [controlsRef, ref.current])
+  }, [controlsRef])
 
   useFrame((state) => {
-    // si no está enabled, bloquear movimiento horizontal
-    if (!enabled) {
-      const currentY = vel.current[1] ?? 0
-      api.velocity.set(0, currentY, 0)
-      return
-    }
+    if (!enabled) return
 
-    // determine control object: prefer controls object (FP) otherwise camera
-    const ctrlObj = controlsRef && controlsRef.current
-      ? (typeof controlsRef.current.getObject === 'function' ? controlsRef.current.getObject() : controlsRef.current)
-      : null
+    const speed = 12 // reducido de 20 a 12 para mejor performance
 
-    // dirección de referencia: control object (FP) o cámara (TP)
-    const dirSource = ctrlObj || camera
-    dirSource.getWorldDirection(forward.current)
+    // obtener dirección de cámara una sola vez
+    camera.getWorldDirection(forward.current)
     forward.current.y = 0
     forward.current.normalize()
-    right.current.copy(forward.current).cross(upVec).normalize()
+    right.current.crossVectors(forward.current, upVec).normalize()
 
-    const moveZ = keys.current.w - keys.current.s
-    const moveX = keys.current.d - keys.current.a
-    const speed = 6
+    // resetear velocity una vez
+    velocity.current.set(0, 0, 0)
+    
+    // input handling (usar keys.current correctamente)
+    if (keys.current.w) velocity.current.add(forward.current)
+    if (keys.current.s) velocity.current.sub(forward.current)
+    if (keys.current.a) velocity.current.sub(right.current)
+    if (keys.current.d) velocity.current.add(right.current)
 
-    const vx = right.current.x * moveX * speed + forward.current.x * moveZ * speed
-    const vz = right.current.z * moveX * speed + forward.current.z * moveZ * speed
-
-    const currentY = vel.current[1] ?? 0
-    api.velocity.set(vx, currentY, vz)
-
-    // salto
-    const onGround = Math.abs(currentY) < 0.15
-    if (keys.current.space && onGround) {
-      api.applyImpulse([0, 5, 0], [0, 0, 0])
+    if (velocity.current.length() > 0) {
+      velocity.current.normalize()
+      velocity.current.multiplyScalar(speed) // simplificado sin delta complejo
+      api.velocity.set(velocity.current.x, vel.current[1], velocity.current.z)
+    } else {
+      api.velocity.set(0, vel.current[1], 0)
     }
 
-    // animaciones
-    const hSpeed = Math.hypot(vel.current[0] ?? 0, vel.current[2] ?? 0)
-    const t = state.clock.getElapsedTime()
-    const walkSpeed = Math.min(hSpeed, 6) / 6
-    const angle = Math.sin(t * 8) * 0.6 * walkSpeed
-    if (leftLegRef.current) leftLegRef.current.rotation.x = angle
-    if (rightLegRef.current) rightLegRef.current.rotation.x = -angle
-    if (leftArmRef.current) leftArmRef.current.rotation.x = -angle * 0.6
-    if (rightArmRef.current) rightArmRef.current.rotation.x = angle * 0.6
+    // salto (corregir variable currentY)
+    const currentY = vel.current[1] || 0
+    const onGround = Math.abs(currentY) < 0.5
+    if (keys.current.space && onGround) {
+      api.applyImpulse([0, 12, 0], [0, 0, 0])
+    }
 
-    if (headRef.current) headRef.current.position.y = headLocalY + 0.06 * Math.abs(Math.sin(t * 8)) * walkSpeed
+    // animaciones simples (throttle a cada 3 frames para performance)
+    if (state.frame % 3 === 0) {
+      const hSpeed = Math.hypot(vel.current[0] ?? 0, vel.current[2] ?? 0)
+      const t = state.clock.getElapsedTime()
+      const walkSpeed = Math.min(hSpeed, 6) / 6//
+      const angle = Math.sin(t * 8) * 0.6 * walkSpeed
+      
+      if (leftLegRef.current) leftLegRef.current.rotation.x = angle
+      if (rightLegRef.current) rightLegRef.current.rotation.x = -angle
+      if (leftArmRef.current) leftArmRef.current.rotation.x = -angle * 0.6
+      if (rightArmRef.current) rightArmRef.current.rotation.x = angle * 0.6
+      if (headRef.current) headRef.current.position.y = headLocalY + 0.06 * Math.abs(Math.sin(t * 8)) * walkSpeed
+    }
 
-    if (ref.current) {
+    // position sharing para IA (throttle)
+    if (ref.current && playerPosRef?.current && state.frame % 2 === 0) {
+      const headWorld = new THREE.Vector3()
+      if (headRef.current) {
+        headRef.current.getWorldPosition(headWorld)
+        playerPosRef.current.copy(headWorld)
+      } else {
+        ref.current.getWorldPosition(playerPosRef.current)
+      }
+    }
+
+    // cámara en tercera persona (throttle)
+    if (!firstPerson && state.frame % 2 === 0) {
       const headWorld = new THREE.Vector3()
       if (headRef.current) headRef.current.getWorldPosition(headWorld)
-
-      if (firstPerson && ctrlObj) {
-        // primera persona: NO manipulamos camera directamente aquí porque PointerLockControls
-        // ya está parentado al collider (se adjunta en useEffect). Dejar que Controls maneje rotación.
-        // Si quieres ajustar la posición relativa, cambia ctrlObj.position en tryAttach en lugar de hacerlo cada frame.
-      } else {
-        // tercera persona: cámara detrás del jugador (lerp)
-        const target = new THREE.Vector3(headWorld.x, headWorld.y + 0.6, headWorld.z)
-        const desiredPos = new THREE.Vector3(headWorld.x + 3, headWorld.y + 2, headWorld.z + 6)
-        camera.position.lerp(desiredPos, 0.08)
-        camera.lookAt(target)
-      }
-
-      // Exponer posición para la IA (usa la posición de la cabeza si existe)
-      if (playerPosRef && playerPosRef.current) {
-        if (headRef.current) playerPosRef.current.copy(headWorld)
-        else ref.current.getWorldPosition(playerPosRef.current)
-      }
+      const target = new THREE.Vector3(headWorld.x, headWorld.y + 0.6, headWorld.z)
+      const desiredPos = new THREE.Vector3(headWorld.x + 3, headWorld.y + 2, headWorld.z + 6)
+      camera.position.lerp(desiredPos, 0.08)
+      camera.lookAt(target)
     }
   })
 
   return (
     <group>
       <mesh ref={ref} castShadow receiveShadow>
-        {/* geometry ahora sincronizada con el collider más grande */}
         <boxGeometry args={[1.5, 4.0, 1.2]} />
         <meshBasicMaterial visible={false} />
       </mesh>
