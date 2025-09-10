@@ -76,22 +76,22 @@ export default function Enemy({
 
   return (
     <group ref={ref}>
-      {/* torso */}
+      {/* torso - más grande */}
       <mesh castShadow>
-        <boxGeometry args={[0.6, 1.2, 0.45]} />
+        <boxGeometry args={[1.5, 3.0, 1.1]} />
         <meshStandardMaterial color="#550000" />
       </mesh>
 
-      {/* cabeza base */}
-      <mesh position={[0, 0.9, 0]}>
-        <sphereGeometry args={[0.28, 16, 12]} />
+      {/* cabeza base - más grande */}
+      <mesh position={[0, 2.2, 0]}>
+        <sphereGeometry args={[0.7, 16, 12]} />
         <meshStandardMaterial color="#331111" />
       </mesh>
 
-      {/* cara circular (usa circleGeometry para una forma realmente circular) */}
+      {/* cara circular - más grande y ajustada */}
       {circleTexture && (
-        <mesh position={[0, 0.9, 0.32]} renderOrder={999}>
-          <circleGeometry args={[0.28, 64]} />
+        <mesh position={[0, 2.2, 0.8]} renderOrder={999}>
+          <circleGeometry args={[0.7, 64]} />
           <meshBasicMaterial
             map={circleTexture}
             transparent={true}

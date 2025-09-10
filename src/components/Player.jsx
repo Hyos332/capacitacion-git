@@ -8,10 +8,9 @@ export default function Player({ firstPerson = false, controlsRef = null, enable
 
   const [ref, api] = useBox(() => ({
     mass: 1,
-    // subimos el collider para que la cámara quede a mayor altura
-    position: [0, 1.3, 5],
-    // mantener args consistente con la malla visual (altura mayor)
-    args: [0.6, 1.6, 0.45],
+    // hacer el jugador más grande para el mapa gigante
+    position: [0, 3.5, 5],
+    args: [1.5, 4.0, 1.2], // ancho, alto, profundidad más grandes
     linearDamping: 0.9,
     angularDamping: 1
   }))
@@ -60,10 +59,11 @@ export default function Player({ firstPerson = false, controlsRef = null, enable
   const rightArmRef = useRef()
   const leftLegRef = useRef()
   const rightLegRef = useRef()
+  const torsoRef = useRef()
 
-  const visualYOffset = 0.18
-  // aumentar este valor eleva la cámara en 1ª persona
-  const headLocalY = 1.05 // posición Y de la cabeza dentro del grupo visual
+  // ajustar proporciones visuales para el jugador más grande
+  const visualYOffset = 0.4
+  const headLocalY = 2.5 // altura de la cabeza dentro del collider
 
   // cuando controlsRef y el mesh existan, parentear el objeto de controls al mesh (una sola vez)
   useEffect(() => {
@@ -170,42 +170,24 @@ export default function Player({ firstPerson = false, controlsRef = null, enable
   })
 
   return (
-    <mesh ref={ref} castShadow receiveShadow>
-      {/* geometry ahora sincronizada con el collider (altura 1.6) */}
-      <boxGeometry args={[0.6, 1.6, 0.45]} />
-      <meshBasicMaterial visible={false} />
+    <group>
+      <mesh ref={ref} castShadow receiveShadow>
+        {/* geometry ahora sincronizada con el collider más grande */}
+        <boxGeometry args={[1.5, 4.0, 1.2]} />
+        <meshBasicMaterial visible={false} />
+      </mesh>
 
-      {!firstPerson && (
-        <group position={[0, visualYOffset, 0]}>
-          <mesh ref={headRef} position={[0, headLocalY, 0]} castShadow>
-            <boxGeometry args={[0.5, 0.5, 0.5]} />
-            <meshStandardMaterial color="#ffcc99" />
-          </mesh>
+      <group position={[0, visualYOffset, 0]}>
+        <mesh ref={torsoRef} castShadow>
+          <boxGeometry args={[1.2, 2.5, 0.8]} />
+          <meshStandardMaterial color="#333" />
+        </mesh>
 
-          <mesh position={[0, 0.1, 0]} castShadow>
-            <boxGeometry args={[0.6, 0.7, 0.35]} />
-            <meshStandardMaterial color="#8b5a2b" />
-          </mesh>
-
-          <mesh ref={leftArmRef} position={[-0.45, 0.1, 0]} castShadow>
-            <boxGeometry args={[0.18, 0.6, 0.18]} />
-            <meshStandardMaterial color="#ffcc99" />
-          </mesh>
-          <mesh ref={rightArmRef} position={[0.45, 0.1, 0]} castShadow>
-            <boxGeometry args={[0.18, 0.6, 0.18]} />
-            <meshStandardMaterial color="#ffcc99" />
-          </mesh>
-
-          <mesh ref={leftLegRef} position={[-0.15, -0.45, 0]} castShadow>
-            <boxGeometry args={[0.2, 0.6, 0.2]} />
-            <meshStandardMaterial color="#333" />
-          </mesh>
-          <mesh ref={rightLegRef} position={[0.15, -0.45, 0]} castShadow>
-            <boxGeometry args={[0.2, 0.6, 0.2]} />
-            <meshStandardMaterial color="#333" />
-          </mesh>
-        </group>
-      )}
-    </mesh>
+        <mesh ref={headRef} position={[0, headLocalY - visualYOffset, 0]} castShadow>
+          <sphereGeometry args={[0.6, 16, 12]} />
+          <meshStandardMaterial color="#ffdbac" />
+        </mesh>
+      </group>
+    </group>
   )
 }

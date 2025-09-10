@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { Suspense, useEffect, useRef, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { PointerLockControls, Stats } from '@react-three/drei'
+import { PointerLockControls, Stats, useGLTF } from '@react-three/drei'
 import { Physics, usePlane } from '@react-three/cannon'
 import * as THREE from 'three'
 import Player from './components/Player'
@@ -9,6 +9,7 @@ import Menu from './components/Menu'
 import PauseMenu from './components/PauseMenu'
 import Enemy from './components/Enemy'
 import DancingRobot from './components/DancingRobot' // <-- añadir import
+import MapModel from './components/MapModel'
 
 function Ground() {
   const [ref] = usePlane(() => ({ rotation: [-Math.PI / 2, 0, 0], position: [0, -0.5, 0] }))
@@ -16,6 +17,20 @@ function Ground() {
     <mesh ref={ref} rotation-x={-Math.PI / 2} receiveShadow>
       <planeGeometry args={[200, 200]} />
       <meshStandardMaterial color="#228B22" />
+    </mesh>
+  )
+}
+
+function InvisibleGround() {
+  const [ref] = usePlane(() => ({
+    rotation: [-Math.PI / 2, 0, 0],
+    position: [0, -1, 0], // ajusta Y según la altura del suelo del mapa
+    args: [100, 100] // tamaño del plano de colisión
+  }))
+  return (
+    <mesh ref={ref} visible={false}>
+      <planeGeometry args={[100, 100]} />
+      <meshBasicMaterial />
     </mesh>
   )
 }
@@ -153,7 +168,8 @@ export default function App() {
         <ambientLight intensity={0.6} />
         <directionalLight position={[10, 40, 20]} intensity={0.9} castShadow />
         <Physics gravity={[0, -9.81, 0]}>
-          <Ground />
+          <InvisibleGround />
+          <MapModel position={[0, -1, 0]} scale={1.5} />
           {chunkElements}
           <Player
             firstPerson={firstPerson}

@@ -68,22 +68,22 @@ export default function DancingRobot({
 
   return (
     <group ref={root} position={position} scale={[scale, scale, scale]}>
-      {/* torso */}
+      {/* torso - más grande */}
       <mesh ref={torso} castShadow>
-        <boxGeometry args={[0.9, 1.4, 0.5]} />
+        <boxGeometry args={[2.2, 3.5, 1.2]} />
         <meshStandardMaterial color="#4b0000" metalness={0.1} roughness={0.7} />
       </mesh>
 
-      {/* cabeza base */}
-      <mesh ref={head} position={[0, 1.05, 0]} castShadow>
-        <sphereGeometry args={[0.28, 16, 12]} />
+      {/* cabeza base - más grande */}
+      <mesh ref={head} position={[0, 2.6, 0]} castShadow>
+        <sphereGeometry args={[0.7, 16, 12]} />
         <meshStandardMaterial color="#ffd7c0" metalness={0.05} roughness={0.8} />
       </mesh>
 
-      {/* cara circular en frente de la cabeza */}
+      {/* cara circular - más grande y ajustada */}
       {circleTexture && (
-        <mesh position={[0, 1.05, 0.32]} renderOrder={999}>
-          <circleGeometry args={[0.28, 64]} />
+        <mesh position={[0, 2.6, 0.8]} renderOrder={999}>
+          <circleGeometry args={[0.7, 64]} />
           <meshBasicMaterial
             map={circleTexture}
             transparent={true}
@@ -94,23 +94,23 @@ export default function DancingRobot({
         </mesh>
       )}
 
-      {/* brazos */}
-      <mesh ref={leftArm} position={[-0.9, 0.4, 0]} rotation={[0, 0, 0.2]} castShadow>
-        <cylinderGeometry args={[0.12, 0.12, 1.0, 10]} />
+      {/* brazos - más grandes */}
+      <mesh ref={leftArm} position={[-2.2, 1.0, 0]} rotation={[0, 0, 0.2]} castShadow>
+        <cylinderGeometry args={[0.3, 0.3, 2.5, 10]} />
         <meshStandardMaterial color="#0b7f0b" />
       </mesh>
-      <mesh ref={rightArm} position={[0.9, 0.4, 0]} rotation={[0, 0, -0.2]} castShadow>
-        <cylinderGeometry args={[0.12, 0.12, 1.0, 10]} />
+      <mesh ref={rightArm} position={[2.2, 1.0, 0]} rotation={[0, 0, -0.2]} castShadow>
+        <cylinderGeometry args={[0.3, 0.3, 2.5, 10]} />
         <meshStandardMaterial color="#0b7f0b" />
       </mesh>
 
-      {/* piernas */}
-      <mesh position={[-0.25, -0.9, 0]} castShadow>
-        <boxGeometry args={[0.22, 0.9, 0.22]} />
+      {/* piernas - más grandes */}
+      <mesh position={[-0.6, -2.2, 0]} castShadow>
+        <boxGeometry args={[0.55, 2.2, 0.55]} />
         <meshStandardMaterial color="#221111" />
       </mesh>
-      <mesh position={[0.25, -0.9, 0]} castShadow>
-        <boxGeometry args={[0.22, 0.9, 0.22]} />
+      <mesh position={[0.6, -2.2, 0]} castShadow>
+        <boxGeometry args={[0.55, 2.2, 0.55]} />
         <meshStandardMaterial color="#221111" />
       </mesh>
     </group>
