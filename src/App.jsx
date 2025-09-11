@@ -106,6 +106,8 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  // COMENTAR O ELIMINAR esta sección completa de chunks:
+  /*
   const chunkSize = [16, 4, 16]
   const chunksX = 3
   const chunksZ = 3
@@ -120,6 +122,10 @@ export default function App() {
       chunkElements.push(<InstancedChunk key={`c-${cx}-${cz}`} size={chunkSize} offset={[offsetX, 0, offsetZ]} density={0.18} />)
     }
   }
+  */
+
+  // REEMPLAZAR por array vacío:
+  const chunkElements = []
 
   const handleResume = () => {
     setPaused(false)
@@ -170,6 +176,7 @@ export default function App() {
         <Physics gravity={[0, -9.81, 0]}>
           <InvisibleGround />
           <MapModel position={[0, -1, 0]} scale={1.5} />
+          {/* chunkElements ahora está vacío, no renderizará bloques */}
           {chunkElements}
           <Player
             firstPerson={firstPerson}
