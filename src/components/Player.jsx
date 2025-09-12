@@ -158,6 +158,17 @@ export default function Player({ firstPerson = false, controlsRef = null, enable
       camera.position.lerp(desiredPos, 0.08)
       camera.lookAt(target)
     }
+
+    // CRÍTICO: Actualizar posición para que Enemy pueda perseguir
+    if (ref.current && playerPosRef?.current) {
+      ref.current.getWorldPosition(playerPosRef.current)
+      playerPosRef.current.y += 2.5 // ajustar a altura de cabeza
+      
+      // DEBUG cada 2 segundos
+      if (state.frame % 120 === 0) {
+        console.log('Player position updated to:', playerPosRef.current.x.toFixed(1), playerPosRef.current.y.toFixed(1), playerPosRef.current.z.toFixed(1))
+      }
+    }
   })
 
   return (
